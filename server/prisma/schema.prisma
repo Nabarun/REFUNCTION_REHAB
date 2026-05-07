@@ -211,3 +211,31 @@ model Appointment {
   @@unique([patientId, appointmentDate, startTime])
   @@map("appointments")
 }
+
+model PageView {
+  id        String   @id @default(cuid())
+  visitorId String
+  path      String
+  referrer  String?
+  device    String   @default("desktop")
+  userAgent String?
+  timestamp DateTime @default(now())
+
+  @@index([timestamp])
+  @@index([visitorId, timestamp])
+  @@map("page_views")
+}
+
+model DailyStats {
+  id              String   @id @default(cuid())
+  date            DateTime @unique
+  uniqueVisitors  Int      @default(0)
+  totalPageViews  Int      @default(0)
+  topPages        Json     @default("[]")
+  topReferrers    Json     @default("[]")
+  deviceBreakdown Json     @default("{}")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@map("daily_stats")
+}

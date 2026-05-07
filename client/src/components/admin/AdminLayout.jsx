@@ -1,5 +1,5 @@
 import { Link, NavLink, useNavigate } from 'react-router-dom'
-import { LayoutDashboard, Users, CreditCard, MessageSquareQuote, Clock, CalendarDays, LogOut, Menu, X } from 'lucide-react'
+import { LayoutDashboard, Users, CreditCard, MessageSquareQuote, Clock, CalendarDays, BarChart3, LogOut, Menu, X } from 'lucide-react'
 import { useState } from 'react'
 
 const nav = [
@@ -9,6 +9,7 @@ const nav = [
   { to: '/admin/testimonials',  icon: MessageSquareQuote,  label: 'Testimonials'  },
   { to: '/admin/availability',  icon: Clock,               label: 'Availability'  },
   { to: '/admin/appointments',  icon: CalendarDays,        label: 'Appointments'  },
+  { to: '/admin/analytics',     icon: BarChart3,           label: 'Analytics'     },
 ]
 
 export default function AdminLayout({ children }) {

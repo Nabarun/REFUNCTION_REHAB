@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { Users, IndianRupee, TrendingUp, Clock, UserPlus, AlertCircle, Package, CalendarCheck, CalendarDays, ChevronLeft, ChevronRight, Eye, EyeOff } from 'lucide-react'
+import { Users, IndianRupee, TrendingUp, Clock, UserPlus, AlertCircle, Package, CalendarCheck, CalendarDays, ChevronLeft, ChevronRight, Eye, EyeOff, BarChart3 } from 'lucide-react'
 import AdminLayout from '../../components/admin/AdminLayout'
 import { getDashboard } from '../../lib/api'
 
@@ -140,6 +140,7 @@ export default function Dashboard() {
         <StatCard icon={Package}      color="#7C3AED" label="Active Packages"       value={fmt(data.activePackages)}        to="/admin/patients" />
         <StatCard icon={CalendarCheck} color="#0891B2" label="Visits Today"          value={fmt(data.visitsToday)}           to="/admin/patients" />
         <StatCard icon={CalendarDays}  color="#2563EB" label="Appointments Today"   value={fmt(data.appointmentsToday)}     to="/admin/appointments" />
+        <StatCard icon={BarChart3}     color="#6366F1" label="Visitors Today"       value={fmt(data.visitorsToday)}        to="/admin/analytics" />
       </div>
 
       <div className="grid lg:grid-cols-2 gap-6">

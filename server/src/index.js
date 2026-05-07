@@ -10,6 +10,8 @@ const testimonialRoutes  = require('./routes/testimonials')
 const packageRoutes      = require('./routes/packages')
 const appointmentRoutes  = require('./routes/appointments')
 const availabilityRoutes = require('./routes/availability')
+const trackRoutes        = require('./routes/track')
+const { startAnalyticsJobs } = require('./lib/analyticsAggregator')
 
 const app  = express()
 const PORT = process.env.PORT || 4000
@@ -28,6 +30,7 @@ app.get('/health', (req, res) => {
 })
 
 // ─── API Routes ───────────────────────────────────────────────────────────────
+app.use('/api/track',    trackRoutes)
 app.use('/api/patients', patientRoutes)
 app.use('/api/payments', paymentRoutes)
 app.use('/api/contact',  contactRoutes)
@@ -53,4 +56,5 @@ app.use((err, req, res, next) => {
 
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`✅ ReFunction Rehab API running on port ${PORT}`)
+  startAnalyticsJobs()
 })

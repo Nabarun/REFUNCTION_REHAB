@@ -32,6 +32,7 @@ router.get('/dashboard', async (req, res) => {
       visitsToday,
       appointmentsToday,
       todaysSchedule,
+      visitorsToday,
     ] = await Promise.all([
       prisma.patient.count(),
       prisma.patient.count({ where: { enrolledAt: { gte: todayStart } } }),
@@ -85,6 +86,12 @@ router.get('/dashboard', async (req, res) => {
         take: 10,
         include: { patient: { select: { fullName: true, mobile: true } } },
       }),
+      // Unique visitors today (analytics)
+      prisma.pageView.findMany({
+        where: { timestamp: { gte: todayStart } },
+        distinct: ['visitorId'],
+        select: { visitorId: true },
+      }).then(rows => rows.length).catch(() => 0),
     ])
 
     // Packages needing attention: active with <=2 sessions remaining
@@ -135,10 +142,160 @@ router.get('/dashboard', async (req, res) => {
       attentionPackages,
       appointmentsToday,
       todaysSchedule,
+      visitorsToday,
     })
   } catch (err) {
     console.error('[admin dashboard]', err)
     res.status(500).json({ error: 'Failed to load dashboard' })
+  }
+})
+
+// ─── GET /api/admin/analytics/summary ────────────────────────────────────────
+// Live today stats + recent 7-day aggregated history
+router.get('/analytics/summary', async (req, res) => {
+  try {
+    const now = new Date()
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+    const sevenDaysAgo = new Date(todayStart)
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
+
+    const [todayViews, todayVisitors, recentStats] = await Promise.all([
+      prisma.pageView.count({ where: { timestamp: { gte: todayStart } } }),
+      prisma.pageView.findMany({
+        where: { timestamp: { gte: todayStart } },
+        distinct: ['visitorId'],
+        select: { visitorId: true },
+      }),
+      prisma.dailyStats.findMany({
+        where: { date: { gte: sevenDaysAgo, lt: todayStart } },
+        orderBy: { date: 'asc' },
+      }),
+    ])
+
+    res.json({
+      today: {
+        pageViews: todayViews,
+        uniqueVisitors: todayVisitors.length,
+      },
+      history: recentStats,
+    })
+  } catch (err) {
+    console.error('[analytics summary]', err)
+    res.status(500).json({ error: 'Failed to load analytics summary' })
+  }
+})
+
+// ─── GET /api/admin/analytics/daily ─────────────────────────────────────────
+// Daily stats within a date range
+router.get('/analytics/daily', async (req, res) => {
+  try {
+    const { from, to } = req.query
+    const now = new Date()
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+
+    const fromDate = from ? new Date(from) : new Date(todayStart.getTime() - 30 * 24 * 60 * 60 * 1000)
+    const toDate = to ? new Date(to) : todayStart
+
+    // Get aggregated stats for past days
+    const stats = await prisma.dailyStats.findMany({
+      where: { date: { gte: fromDate, lte: toDate } },
+      orderBy: { date: 'asc' },
+    })
+
+    // Add live today stats if toDate is today or future
+    if (toDate >= todayStart) {
+      const [todayViews, todayVisitors] = await Promise.all([
+        prisma.pageView.count({ where: { timestamp: { gte: todayStart } } }),
+        prisma.pageView.findMany({
+          where: { timestamp: { gte: todayStart } },
+          distinct: ['visitorId'],
+          select: { visitorId: true },
+        }),
+      ])
+
+      stats.push({
+        date: todayStart,
+        uniqueVisitors: todayVisitors.length,
+        totalPageViews: todayViews,
+        topPages: [],
+        topReferrers: [],
+        deviceBreakdown: {},
+      })
+    }
+
+    res.json(stats)
+  } catch (err) {
+    console.error('[analytics daily]', err)
+    res.status(500).json({ error: 'Failed to load daily analytics' })
+  }
+})
+
+// ─── GET /api/admin/analytics/pages ─────────────────────────────────────────
+// Top pages in a date range (from raw PageView data)
+router.get('/analytics/pages', async (req, res) => {
+  try {
+    const { from, to } = req.query
+    const now = new Date()
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+
+    const fromDate = from ? new Date(from) : new Date(todayStart.getTime() - 30 * 24 * 60 * 60 * 1000)
+    const toDate = to ? new Date(new Date(to).getTime() + 24 * 60 * 60 * 1000) : new Date()
+
+    const pages = await prisma.pageView.groupBy({
+      by: ['path'],
+      where: { timestamp: { gte: fromDate, lt: toDate } },
+      _count: { id: true },
+      orderBy: { _count: { id: 'desc' } },
+      take: 20,
+    })
+
+    res.json(pages.map(p => ({ path: p.path, count: p._count.id })))
+  } catch (err) {
+    console.error('[analytics pages]', err)
+    res.status(500).json({ error: 'Failed to load page analytics' })
+  }
+})
+
+// ─── GET /api/admin/analytics/referrers ─────────────────────────────────────
+// Top referrers in a date range
+router.get('/analytics/referrers', async (req, res) => {
+  try {
+    const { from, to } = req.query
+    const now = new Date()
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+
+    const fromDate = from ? new Date(from) : new Date(todayStart.getTime() - 30 * 24 * 60 * 60 * 1000)
+    const toDate = to ? new Date(new Date(to).getTime() + 24 * 60 * 60 * 1000) : new Date()
+
+    const views = await prisma.pageView.findMany({
+      where: {
+        timestamp: { gte: fromDate, lt: toDate },
+        referrer: { not: null },
+      },
+      select: { referrer: true },
+    })
+
+    const refCounts = {}
+    for (const v of views) {
+      if (v.referrer) {
+        try {
+          const domain = new URL(v.referrer).hostname
+          refCounts[domain] = (refCounts[domain] || 0) + 1
+        } catch {
+          refCounts[v.referrer] = (refCounts[v.referrer] || 0) + 1
+        }
+      }
+    }
+
+    const sorted = Object.entries(refCounts)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 20)
+      .map(([source, count]) => ({ source, count }))
+
+    res.json(sorted)
+  } catch (err) {
+    console.error('[analytics referrers]', err)
+    res.status(500).json({ error: 'Failed to load referrer analytics' })
   }
 })
 

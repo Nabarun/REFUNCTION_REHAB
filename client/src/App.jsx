@@ -26,7 +26,9 @@ import EditPatient         from './pages/admin/EditPatient'
 import AdminTestimonials   from './pages/admin/Testimonials'
 import AdminAvailability   from './pages/admin/Availability'
 import AdminAppointments   from './pages/admin/Appointments'
+import AdminAnalytics      from './pages/admin/Analytics'
 import Book                from './pages/Book'
+import usePageTracking     from './hooks/usePageTracking'
 
 function ProtectedRoute({ children }) {
   const token = localStorage.getItem('rfr_token')
@@ -35,6 +37,7 @@ function ProtectedRoute({ children }) {
 
 function PublicRoutes() {
   const location = useLocation()
+  usePageTracking()
   return (
     <>
       <Navbar />
@@ -70,6 +73,7 @@ export default function App() {
         <Route path="/admin/testimonials"  element={<ProtectedRoute><AdminTestimonials /></ProtectedRoute>} />
         <Route path="/admin/availability"  element={<ProtectedRoute><AdminAvailability /></ProtectedRoute>} />
         <Route path="/admin/appointments"  element={<ProtectedRoute><AdminAppointments /></ProtectedRoute>} />
+        <Route path="/admin/analytics"    element={<ProtectedRoute><AdminAnalytics /></ProtectedRoute>} />
         <Route path="/admin/payment"       element={<ProtectedRoute><Payment /></ProtectedRoute>} />
         <Route path="/admin"           element={<Navigate to="/admin/dashboard" replace />} />
 
