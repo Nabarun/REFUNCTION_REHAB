@@ -1,6 +1,6 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, Fragment } from 'react'
 import { motion } from 'framer-motion'
-import { BarChart3, Users, Eye, Globe, Smartphone, Monitor, Tablet, RefreshCw } from 'lucide-react'
+import { BarChart3, Users, Eye, Globe, Smartphone, Monitor, Tablet, RefreshCw, ChevronDown, ChevronUp } from 'lucide-react'
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, Legend,
@@ -8,6 +8,7 @@ import {
 import AdminLayout from '../../components/admin/AdminLayout'
 import {
   getAnalyticsSummary, getAnalyticsDaily, getAnalyticsPages, getAnalyticsReferrers,
+  getAnalyticsVisitors,
 } from '../../lib/api'
 
 const COLORS = ['#1A7F8E', '#1B2F5E', '#F5A623', '#E8630A', '#7C3AED', '#059669', '#BE185D', '#2563EB']
@@ -36,6 +37,8 @@ export default function Analytics() {
   const [daily, setDaily] = useState([])
   const [pages, setPages] = useState([])
   const [referrers, setReferrers] = useState([])
+  const [visitors, setVisitors] = useState([])
+  const [expandedVisitor, setExpandedVisitor] = useState(null)
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
 
@@ -44,16 +47,18 @@ export default function Analytics() {
     else setLoading(true)
 
     try {
-      const [sumRes, dailyRes, pagesRes, refRes] = await Promise.all([
+      const [sumRes, dailyRes, pagesRes, refRes, visitorsRes] = await Promise.all([
         getAnalyticsSummary(),
         getAnalyticsDaily({ from: range.from, to: range.to }),
         getAnalyticsPages({ from: range.from, to: range.to }),
         getAnalyticsReferrers({ from: range.from, to: range.to }),
+        getAnalyticsVisitors(),
       ])
       setSummary(sumRes.data)
       setDaily(dailyRes.data)
       setPages(pagesRes.data)
       setReferrers(refRes.data)
+      setVisitors(visitorsRes.data)
     } catch (err) {
       console.error('Failed to load analytics', err)
     } finally {
@@ -169,6 +174,72 @@ export default function Analytics() {
           <div className="font-accent font-bold text-3xl text-navy">{fmt(totalPageViews)}</div>
           <div className="text-muted text-sm mt-0.5">Page Views (Range)</div>
         </motion.div>
+      </div>
+
+      {/* Today's Visitors detail table */}
+      <div className="card p-6 mb-6">
+        <h2 className="font-display font-semibold text-navy mb-4 flex items-center gap-2">
+          <Users size={18} className="text-teal" /> Today&rsquo;s Visitors
+        </h2>
+        {visitors.length === 0 ? (
+          <p className="text-muted text-sm text-center py-8">No visitors yet</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-gray-200 text-left text-muted">
+                  <th className="py-2 pr-2 w-8">#</th>
+                  <th className="py-2 pr-3">Visitor</th>
+                  <th className="py-2 pr-3">Device</th>
+                  <th className="py-2 pr-3">Referrer</th>
+                  <th className="py-2 pr-3 text-center">Pages</th>
+                  <th className="py-2 pr-3">First Seen</th>
+                  <th className="py-2">Last Seen</th>
+                </tr>
+              </thead>
+              <tbody>
+                {visitors.map((v, i) => (
+                  <Fragment key={v.visitorId + i}>
+                    <tr
+                      className="border-b border-gray-100 hover:bg-light/50 cursor-pointer transition-colors"
+                      onClick={() => setExpandedVisitor(expandedVisitor === i ? null : i)}
+                    >
+                      <td className="py-2.5 pr-2 text-muted">{i + 1}</td>
+                      <td className="py-2.5 pr-3 font-mono text-navy">{v.visitorId}</td>
+                      <td className="py-2.5 pr-3">
+                        <span className="inline-flex items-center gap-1 text-muted capitalize">
+                          {v.device === 'mobile' ? <Smartphone size={14} /> : v.device === 'tablet' ? <Tablet size={14} /> : <Monitor size={14} />}
+                          {v.device}
+                        </span>
+                      </td>
+                      <td className="py-2.5 pr-3 text-muted">{v.referrer || <span className="italic">direct</span>}</td>
+                      <td className="py-2.5 pr-3 text-center font-semibold text-navy">{v.pageCount}</td>
+                      <td className="py-2.5 pr-3 text-muted">{v.firstSeen}</td>
+                      <td className="py-2.5 text-muted flex items-center justify-between">
+                        {v.lastSeen}
+                        {expandedVisitor === i ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                      </td>
+                    </tr>
+                    {expandedVisitor === i && (
+                      <tr>
+                        <td colSpan={7} className="bg-light/30 px-4 py-3">
+                          <div className="space-y-1">
+                            {v.pages.map((pg, j) => (
+                              <div key={j} className="flex items-center gap-3 text-xs">
+                                <span className="text-muted w-16 shrink-0">{pg.time}</span>
+                                <span className="font-mono text-navy">{pg.path}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </Fragment>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
       {/* Line chart — visitors & page views over time */}

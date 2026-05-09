@@ -104,5 +104,6 @@ export const getAnalyticsSummary   = ()       => api.get('/admin/analytics/summa
 export const getAnalyticsDaily     = (params) => api.get('/admin/analytics/daily', { params })
 export const getAnalyticsPages     = (params) => api.get('/admin/analytics/pages', { params })
 export const getAnalyticsReferrers = (params) => api.get('/admin/analytics/referrers', { params })
+export const getAnalyticsVisitors  = (params) => api.get('/admin/analytics/visitors', { params })
 
 export default api

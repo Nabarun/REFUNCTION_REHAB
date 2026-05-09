@@ -303,6 +303,70 @@ router.get('/analytics/referrers', async (req, res) => {
   }
 })
 
+// ─── GET /api/admin/analytics/visitors ─────────────────────────────────────
+// Individual visitor sessions for a given day (defaults to today)
+router.get('/analytics/visitors', async (req, res) => {
+  try {
+    const now = new Date()
+    const dateStr = req.query.date // optional YYYY-MM-DD
+    const dayStart = dateStr ? new Date(dateStr) : new Date(now.getFullYear(), now.getMonth(), now.getDate())
+    const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000)
+
+    const views = await prisma.pageView.findMany({
+      where: { timestamp: { gte: dayStart, lt: dayEnd } },
+      orderBy: { timestamp: 'desc' },
+      select: {
+        visitorId: true,
+        path: true,
+        referrer: true,
+        device: true,
+        timestamp: true,
+      },
+    })
+
+    // Group by visitorId
+    const visitorMap = new Map()
+    for (const v of views) {
+      if (!visitorMap.has(v.visitorId)) {
+        visitorMap.set(v.visitorId, [])
+      }
+      visitorMap.get(v.visitorId).push(v)
+    }
+
+    const timeFmt = (d) =>
+      new Date(d).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })
+
+    const parseDomain = (ref) => {
+      if (!ref) return null
+      try { return new URL(ref).hostname } catch { return ref }
+    }
+
+    const visitors = []
+    for (const [visitorId, pageViews] of visitorMap) {
+      // pageViews already sorted desc; reverse for chronological
+      const sorted = [...pageViews].reverse()
+      const first = sorted[0]
+      const last = sorted[sorted.length - 1]
+
+      visitors.push({
+        visitorId: visitorId.slice(0, 6),
+        device: first.device || 'desktop',
+        referrer: parseDomain(first.referrer),
+        pages: sorted.map(pv => ({ path: pv.path, time: timeFmt(pv.timestamp) })),
+        pageCount: sorted.length,
+        firstSeen: timeFmt(first.timestamp),
+        lastSeen: timeFmt(last.timestamp),
+      })
+    }
+
+    // Sort by most-recent visitor first, limit to 100
+    res.json(visitors.slice(0, 100))
+  } catch (err) {
+    console.error('[analytics visitors]', err)
+    res.status(500).json({ error: 'Failed to load visitor analytics' })
+  }
+})
+
 // ─── GET /api/admin/patients ──────────────────────────────────────────────────
 router.get('/patients', async (req, res) => {
   try {
