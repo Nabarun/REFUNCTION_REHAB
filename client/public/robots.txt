@@ -1,0 +1,8 @@
+User-agent: *
+Allow: /
+
+# Block admin routes from all crawlers
+Disallow: /admin/
+Disallow: /api/
+
+Sitemap: https://www.refunctionrehab.in/sitemap.xml
