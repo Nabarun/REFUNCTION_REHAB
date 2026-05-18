@@ -84,7 +84,6 @@ router.get('/dashboard', async (req, res) => {
           status: { notIn: ['cancelled'] },
         },
         orderBy: { startTime: 'asc' },
-        take: 10,
         include: { patient: { select: { fullName: true, mobile: true } } },
       }),
       // Unique visitors today (analytics)
