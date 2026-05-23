@@ -418,6 +418,13 @@ router.patch('/:id', async (req, res) => {
     if (cancellationReason !== undefined) data.cancellationReason = cancellationReason
     if (status === 'cancelled')           data.cancelledAt        = new Date()
 
+    // Fetch current appointment to check previous status
+    const current = await prisma.appointment.findUnique({
+      where: { id: req.params.id },
+      select: { status: true, patientId: true, packageId: true, appointmentDate: true },
+    })
+    if (!current) return res.status(404).json({ error: 'Appointment not found' })
+
     const appt = await prisma.appointment.update({
       where: { id: req.params.id },
       data,
@@ -433,7 +440,66 @@ router.patch('/:id', async (req, res) => {
       })
     }
 
-    res.json(appt)
+    // Auto-record visit when appointment transitions to "completed"
+    let autoVisit = null
+    if (status === 'completed' && current.status !== 'completed') {
+      try {
+        // Find active package: prefer linked packageId, otherwise first active package
+        const pkg = current.packageId
+          ? await prisma.treatmentPackage.findUnique({
+              where: { id: current.packageId },
+              include: { _count: { select: { visits: true } } },
+            })
+          : await prisma.treatmentPackage.findFirst({
+              where: { patientId: current.patientId, status: 'active' },
+              orderBy: { createdAt: 'desc' },
+              include: { _count: { select: { visits: true } } },
+            })
+
+        if (pkg && pkg.status === 'active' && pkg._count.visits < pkg.totalSessions) {
+          const visitNumber = pkg._count.visits + 1
+
+          autoVisit = await prisma.patientVisit.create({
+            data: {
+              packageId:      pkg.id,
+              visitDate:      current.appointmentDate,
+              visitNumber,
+              treatmentNotes: notes || null,
+              markedBy:       'Auto (appointment completed)',
+            },
+          })
+
+          console.log(`[auto-visit] Recorded visit ${visitNumber}/${pkg.totalSessions} for patient ${current.patientId} on package ${pkg.id}`)
+
+          eventBus.safeEmit('visit:recorded', {
+            packageId: pkg.id,
+            patientId: current.patientId,
+            visitNumber,
+            totalSessions: pkg.totalSessions,
+          })
+
+          // Auto-complete package if this was the last session
+          if (visitNumber >= pkg.totalSessions) {
+            await prisma.treatmentPackage.update({
+              where: { id: pkg.id },
+              data:  { status: 'completed' },
+            })
+
+            eventBus.safeEmit('package:completed', {
+              packageId: pkg.id,
+              patientId: current.patientId,
+            })
+
+            console.log(`[auto-visit] Package ${pkg.id} auto-completed`)
+          }
+        }
+      } catch (visitErr) {
+        console.error('[auto-visit] Failed:', visitErr)
+        // Don't fail the appointment update if auto-visit fails
+      }
+    }
+
+    res.json({ ...appt, autoVisit })
   } catch (err) {
     if (err.code === 'P2025') return res.status(404).json({ error: 'Appointment not found' })
     console.error('[appointments admin PATCH]', err)

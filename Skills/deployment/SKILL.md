@@ -10,7 +10,7 @@ Use this skill whenever code changes need to be pushed to the live server at htt
 | **server** | `rajesh6601/refunction-server` | 4000 | Node 20-alpine |
 | **client** | `rajesh6601/refunction-client` | 80 | Nginx 1.27-alpine (multi-stage Vite build) |
 
-**Database Models (10):** Patient, Payment, ContactInquiry, Staff, Testimonial, TreatmentPackage, PatientVisit, DoctorAvailability, SlotOverride, Appointment
+**Database Models (11):** Patient, Payment, ContactInquiry, Staff, Testimonial, TreatmentPackage, PatientVisit, DoctorAvailability, SlotOverride, Appointment, Notification
 
 ## Prerequisites (one-time setup on your machine)
 - Docker Desktop installed and running
@@ -139,6 +139,11 @@ Set these in `/opt/refunction/.env` on the VPS:
 | `RAZORPAY_KEY_ID` / `RAZORPAY_KEY_SECRET` | Payment gateway |
 | `SMTP_HOST` / `SMTP_PORT` / `SMTP_USER` / `SMTP_PASS` / `SMTP_FROM` | Email notifications |
 | `CLOUDINARY_URL` | File/image storage |
+| `TWILIO_ACCOUNT_SID` | Twilio account identifier |
+| `TWILIO_AUTH_TOKEN` | Twilio auth token |
+| `TWILIO_WHATSAPP_FROM` | WhatsApp sender number (e.g., `whatsapp:+14155238886`) |
+| `WHATSAPP_COUNTRY_CODE` | Country code for mobile formatting (default: `+91`) |
+| `WHATSAPP_ENABLED` | `true` = send via Twilio, `false` = dry-run mode |
 | `VITE_API_URL` | Client API base (use `/api` in production) |
 
 ---

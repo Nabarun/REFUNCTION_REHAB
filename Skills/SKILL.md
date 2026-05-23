@@ -1566,19 +1566,112 @@ Add to the admin dashboard (`/admin/dashboard`):
 - Add **"Next Appt"** column to the patients table showing the patient's next upcoming appointment date/time, or "—" if none
 - Clicking the date opens the appointment details
 
-### 17.9 Notifications (Future Enhancement)
+### 17.9 Automated WhatsApp Notification System
 
-When implemented, the notification system should support:
+The notification system sends automated WhatsApp messages to patients at key lifecycle moments via **Twilio WhatsApp Business API**. It uses an event-driven architecture with an EventBus for real-time triggers and node-cron for scheduled tasks.
 
-- **Booking confirmation** — SMS/email immediately after booking with appointment details
-- **Reminder** — SMS/WhatsApp 24 hours before the appointment
-- **Cancellation notice** — notify doctor when a patient cancels
-- **No-show follow-up** — automated message to patient after a no-show: "We missed you today. Would you like to reschedule?"
+**Provider:** Twilio (sandbox for dev, production requires WhatsApp Self Sign-up + Meta Business Verification)
 
-For now, the WhatsApp CTA can link to a pre-filled message:
+**Key Files:**
+- `server/src/lib/events.js` — EventBus (global EventEmitter with `safeEmit`)
+- `server/src/services/notifications/whatsapp.js` — `sendWhatsApp()` function (sends via Twilio or dry-run)
+- `server/src/services/notifications/templates.js` — message templates with `{{variable}}` substitution
+- `server/src/services/workflows/engine.js` — registers all workflow listeners + cron jobs
+- `server/src/services/workflows/` — individual workflow files (one per notification type)
+- `server/src/routes/notifications.js` — admin API for viewing/retrying notifications
+
+#### 17.9.1 Notification Types
+
+| Type | Trigger | Category | Template Variables |
+|---|---|---|---|
+| **Welcome** | `patient:enrolled` event (enroll form or quick-register) | Marketing | `{{name}}` |
+| **Appointment Reminder** | Cron (hourly) — appointments within next 24h | Utility | `{{name}}`, `{{serviceType}}`, `{{date}}`, `{{time}}` |
+| **No-Show Follow-up** | `appointment:no-show` event (admin marks no-show) | Utility | `{{name}}`, `{{serviceType}}`, `{{date}}`, `{{time}}` |
+| **Package Milestone** | `visit:recorded` event — every 5th visit | Marketing | `{{name}}`, `{{visitNumber}}`, `{{totalSessions}}`, `{{packageName}}` |
+| **Package Completion** | `package:completed` event — final visit | Marketing | `{{name}}`, `{{packageName}}`, `{{totalSessions}}` |
+| **Re-engagement** | Cron (daily 10 AM) — active package, no visit in 30+ days | Marketing | `{{name}}` |
+
+#### 17.9.2 Deduplication Rules
+
+- **Welcome:** Only one welcome notification per patient (checks existing records)
+- **Reminder:** Uses `appointment.reminderSent` flag to prevent duplicates
+- **Re-engagement:** Max one per patient per 30-day window
+
+#### 17.9.3 Message Flow
+
+1. Workflow checks patient's `whatsappConsent` field (default: true)
+2. `renderTemplate()` picks a random variant from the template pool and substitutes variables
+3. `sendWhatsApp()` creates a `pending` Notification record in DB
+4. Sends via Twilio API (or logs in dry-run mode if `WHATSAPP_ENABLED=false`)
+5. Updates Notification record with `sent`/`failed` status, Twilio SID, and timestamp
+
+#### 17.9.4 Admin Notifications Page (`/admin/notifications`)
+
+- Paginated table with filters: type, status, date range
+- Shows: patient name, type, status badge, message preview, sent time
+- **Retry** button for failed notifications
+- Summary stats: total sent, failed, pending
+
+#### 17.9.5 Environment Variables
+
+```env
+TWILIO_ACCOUNT_SID=         # Twilio account identifier
+TWILIO_AUTH_TOKEN=          # Twilio auth token
+TWILIO_WHATSAPP_FROM=whatsapp:+14155238886  # Twilio sender (sandbox or production number)
+WHATSAPP_COUNTRY_CODE=+91  # Country code for mobile formatting
+WHATSAPP_ENABLED=false      # true = send via Twilio, false = dry-run (log only)
 ```
-https://wa.me/919900911795?text=Hi%20Dr.%20Neha%2C%20I%20just%20booked%20an%20appointment%20for%20{date}%20at%20{time}.
+
+#### 17.9.6 Twilio Production Upgrade (from Sandbox)
+
+The sandbox only delivers to numbers that opted in. For production:
+1. Buy a Twilio virtual number ($1-2/month) at Console → Phone Numbers → Buy
+2. Register as WhatsApp sender at Console → Messaging → WhatsApp Senders → Self Sign-up
+3. Complete Meta Business Verification (PAN/GSTIN, 2-7 days)
+4. Create message templates in Content Template Builder (approved in 24-48h)
+5. Update `TWILIO_WHATSAPP_FROM` in production `.env` to the new number
+
+#### 17.9.7 Database Model
+
+```prisma
+model Notification {
+  id              String    @id @default(cuid())
+  patientId       String
+  patient         Patient   @relation(...)
+  type            String    // welcome, milestone, completion, reminder, no-show, re-engagement
+  channel         String    @default("whatsapp")
+  toNumber        String
+  messageContent  String
+  templateName    String?
+  status          String    @default("pending") // pending, sent, delivered, failed
+  twilioSid       String?
+  errorMessage    String?
+  metadata        Json?
+  sentAt          DateTime?
+  deliveredAt     DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+}
 ```
+
+### 17.9.8 Auto-Visit on Appointment Completion
+
+When Dr. Neha marks an appointment as **"completed"** in the admin panel, the system automatically records a visit on the patient's active treatment package. This eliminates the need for a separate manual "Add Visit" step.
+
+**How it works:**
+1. Admin PATCH `/api/appointments/:id` with `status: 'completed'`
+2. System checks: was the previous status NOT already `completed`? (prevents double-counting)
+3. Finds the patient's active package (prefers `appointment.packageId` if linked, otherwise most recent active package)
+4. Creates a `PatientVisit` record with `markedBy: 'Auto (appointment completed)'`
+5. Emits `visit:recorded` event → triggers milestone notification (every 5th visit)
+6. If this was the final session, auto-completes the package → triggers completion notification
+7. If no active package exists, appointment is simply marked completed with no visit side-effect
+
+**Safeguards:**
+- Only triggers on status **transition** to `completed` (not if already completed)
+- Only if active package has remaining sessions
+- If auto-visit fails, the appointment update still succeeds (non-blocking)
+- `markedBy` field shows "Auto (appointment completed)" for audit trail
 
 ### 17.10 Business Rules
 
@@ -1590,7 +1683,7 @@ https://wa.me/919900911795?text=Hi%20Dr.%20Neha%2C%20I%20just%20booked%20an%20ap
 - **Slot capacity enforcement** — bookings are rejected once `booked >= maxPatients` for a slot. For group sessions (like the 7PM Women's Health batch), `maxPatients` can be set higher (e.g., 8–10).
 - **Walk-ins** — staff can create appointments for walk-in patients directly from the admin calendar, even for the current time slot.
 - **Rescheduling** — treated as cancel + re-book in a single transaction. The old slot opens up, the new slot gets booked.
-- **Completed appointments** — when staff marks an appointment as `completed`, it optionally auto-records a visit in the linked treatment package (if any).
+- **Completed appointments** — when staff marks an appointment as `completed`, the system **automatically records a visit** in the patient's active treatment package (see 17.9.8). This also triggers milestone/completion WhatsApp notifications.
 
 ### 17.11 Site Architecture Update
 

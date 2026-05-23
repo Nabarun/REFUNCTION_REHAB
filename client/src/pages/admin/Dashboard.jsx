@@ -1,9 +1,9 @@
 import { useEffect, useState, useCallback } from 'react'
 import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { Users, IndianRupee, TrendingUp, Clock, UserPlus, AlertCircle, Package, CalendarCheck, CalendarDays, ChevronLeft, ChevronRight, Eye, EyeOff, BarChart3 } from 'lucide-react'
+import { Users, IndianRupee, TrendingUp, Clock, UserPlus, AlertCircle, Package, CalendarCheck, CalendarDays, ChevronLeft, ChevronRight, Eye, EyeOff, BarChart3, CheckCircle, XCircle, AlertTriangle } from 'lucide-react'
 import AdminLayout from '../../components/admin/AdminLayout'
-import { getDashboard } from '../../lib/api'
+import { getDashboard, updateAppointment } from '../../lib/api'
 
 function StatCard({ icon: Icon, label, value, sub, color, to }) {
   const content = (
@@ -47,6 +47,8 @@ export default function Dashboard() {
   const [year, setYear]       = useState(now.getFullYear())
   const [showRevenue, setShowRevenue] = useState(false)
   const [tab, setTab] = useState('today')
+  const [cancelId, setCancelId] = useState(null)
+  const [cancelReason, setCancelReason] = useState('')
 
   const isCurrentMonth = month === now.getMonth() && year === now.getFullYear()
 
@@ -59,6 +61,18 @@ export default function Dashboard() {
   }, [month, year]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => { fetchDashboard() }, [fetchDashboard])
+
+  const handleStatusUpdate = async (id, newStatus, reason) => {
+    try {
+      await updateAppointment(id, {
+        status: newStatus,
+        ...(reason && { cancellationReason: reason }),
+      })
+      fetchDashboard()
+      setCancelId(null)
+      setCancelReason('')
+    } catch { /* ignore */ }
+  }
 
   const goToPrevMonth = () => {
     if (month === 0) { setMonth(11); setYear(y => y - 1) }
@@ -165,12 +179,34 @@ export default function Dashboard() {
                         <div className="text-muted text-xs">{a.serviceType} · {a.sessionType}</div>
                       </div>
                     </div>
-                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium capitalize ${
-                      a.status === 'booked' ? 'bg-blue-100 text-blue-700' :
-                      a.status === 'completed' ? 'bg-green-100 text-green-700' :
-                      a.status === 'no-show' ? 'bg-amber-100 text-amber-700' :
-                      'bg-gray-100 text-gray-600'
-                    }`}>{a.status}</span>
+                    {a.status === 'booked' ? (
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => handleStatusUpdate(a.id, 'completed')}
+                          className="text-green-600 hover:text-green-800" title="Mark Completed"
+                        >
+                          <CheckCircle size={16} />
+                        </button>
+                        <button
+                          onClick={() => handleStatusUpdate(a.id, 'no-show')}
+                          className="text-amber-500 hover:text-amber-700" title="Mark No-Show"
+                        >
+                          <AlertTriangle size={16} />
+                        </button>
+                        <button
+                          onClick={() => setCancelId(a.id)}
+                          className="text-red-500 hover:text-red-700" title="Cancel"
+                        >
+                          <XCircle size={16} />
+                        </button>
+                      </div>
+                    ) : (
+                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium capitalize ${
+                        a.status === 'completed' ? 'bg-green-100 text-green-700' :
+                        a.status === 'no-show' ? 'bg-amber-100 text-amber-700' :
+                        'bg-gray-100 text-gray-600'
+                      }`}>{a.status}</span>
+                    )}
                   </div>
                 ))}
               </div>
@@ -179,6 +215,36 @@ export default function Dashboard() {
             <div className="mt-4 text-right">
               <Link to="/admin/appointments" className="text-teal text-sm font-medium hover:underline">View all →</Link>
             </div>
+
+            {/* Cancel Reason Modal */}
+            {cancelId && (
+              <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4" onClick={() => setCancelId(null)}>
+                <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-xl" onClick={(e) => e.stopPropagation()}>
+                  <h3 className="font-display font-semibold text-navy text-lg mb-4">Cancel Appointment</h3>
+                  <div>
+                    <label className="text-xs font-medium text-muted">Reason for cancellation</label>
+                    <textarea
+                      className="input-field text-sm mt-1"
+                      rows={3}
+                      placeholder="Enter reason..."
+                      value={cancelReason}
+                      onChange={(e) => setCancelReason(e.target.value)}
+                    />
+                  </div>
+                  <div className="flex gap-3 mt-4 justify-end">
+                    <button onClick={() => { setCancelId(null); setCancelReason('') }} className="btn-outline text-sm py-2 px-4">
+                      Back
+                    </button>
+                    <button
+                      onClick={() => handleStatusUpdate(cancelId, 'cancelled', cancelReason)}
+                      className="bg-red-500 text-white text-sm py-2 px-4 rounded-xl hover:bg-red-600 transition-colors"
+                    >
+                      Cancel Appointment
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
           </>
         )
       })()}

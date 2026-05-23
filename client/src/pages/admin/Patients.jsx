@@ -328,24 +328,17 @@ export default function AdminPatients() {
                       >
                         <Pencil size={13} /> Edit
                       </Link>
-                      <button
-                        type="button"
-                        onClick={() => openPkgModal(p)}
-                        className="inline-flex items-center gap-1 text-xs text-purple-600 hover:underline font-medium whitespace-nowrap"
-                      >
-                        <Package size={13} /> Visits
-                      </button>
-                      <Link
-                        to={`/admin/payment?patientId=${p.id}`}
-                        className="inline-flex items-center gap-1 text-xs text-teal hover:underline font-medium whitespace-nowrap"
-                      >
-                        <CreditCard size={13} /> Payment
-                      </Link>
                       <Link
                         to={`/book?patientId=${p.id}&admin=1`}
                         className="inline-flex items-center gap-1 text-xs text-blue-600 hover:underline font-medium whitespace-nowrap"
                       >
                         <CalendarPlus size={13} /> Book
+                      </Link>
+                      <Link
+                        to={`/admin/payment?patientId=${p.id}`}
+                        className="inline-flex items-center gap-1 text-xs text-teal hover:underline font-medium whitespace-nowrap"
+                      >
+                        <CreditCard size={13} /> Payment
                       </Link>
                     </div>
                   </td>
