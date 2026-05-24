@@ -46,8 +46,8 @@ router.get('/:id', async (req, res) => {
     const pkg = await prisma.treatmentPackage.findUnique({
       where: { id: req.params.id },
       include: {
-        patient: { select: { id: true, fullName: true, mobile: true } },
-        payment: { select: { receiptNo: true, totalAmount: true, amountPaid: true, paymentDate: true, services: true } },
+        patient: { select: { id: true, fullName: true, mobile: true, referralSource: true } },
+        payment: { select: { receiptNo: true, totalAmount: true, amountPaid: true, paymentDate: true, paymentMode: true, services: true } },
         visits:  { orderBy: { visitNumber: 'asc' } },
       },
     })

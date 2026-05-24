@@ -28,6 +28,7 @@ import AdminAvailability   from './pages/admin/Availability'
 import AdminAppointments   from './pages/admin/Appointments'
 import AdminAnalytics      from './pages/admin/Analytics'
 import AdminNotifications  from './pages/admin/Notifications'
+import PackageReceipt      from './pages/admin/PackageReceipt'
 import Book                from './pages/Book'
 import usePageTracking     from './hooks/usePageTracking'
 
@@ -77,6 +78,7 @@ export default function App() {
         <Route path="/admin/analytics"      element={<ProtectedRoute><AdminAnalytics /></ProtectedRoute>} />
         <Route path="/admin/notifications"  element={<ProtectedRoute><AdminNotifications /></ProtectedRoute>} />
         <Route path="/admin/payment"       element={<ProtectedRoute><Payment /></ProtectedRoute>} />
+        <Route path="/admin/package-receipt/:packageId" element={<ProtectedRoute><PackageReceipt /></ProtectedRoute>} />
         <Route path="/admin"           element={<Navigate to="/admin/dashboard" replace />} />
 
         {/* All public routes */}

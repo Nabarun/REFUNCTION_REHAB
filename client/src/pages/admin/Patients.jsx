@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react'
 import { Link } from 'react-router-dom'
-import { Search, Download, ChevronLeft, ChevronRight, CreditCard, Pencil, X, Package, Plus, Trash2, ChevronDown, ChevronUp, AlertTriangle, CalendarPlus } from 'lucide-react'
+import { Search, Download, ChevronLeft, ChevronRight, CreditCard, Pencil, X, Package, Plus, Trash2, ChevronDown, ChevronUp, AlertTriangle, CalendarPlus, FileText } from 'lucide-react'
 import AdminLayout from '../../components/admin/AdminLayout'
 import { getAdminPatients, exportPatients, getPatientPackages, recordVisit, deleteVisit, recordPayment } from '../../lib/api'
 
@@ -650,6 +650,20 @@ export default function AdminPatients() {
                                 <div className="font-medium text-navy">{pkg.payment?.receiptNo || '—'}</div>
                               </div>
                             </div>
+
+                            {/* Generate Receipt */}
+                            {pkg.payment && (
+                              <div className="mb-4">
+                                <a
+                                  href={`/admin/package-receipt/${pkg.id}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex items-center gap-1.5 text-xs text-teal font-medium hover:underline"
+                                >
+                                  <FileText size={14} /> Generate Receipt
+                                </a>
+                              </div>
+                            )}
 
                             {/* Mark Visit (active only) */}
                             {pkg.status === 'active' && (
