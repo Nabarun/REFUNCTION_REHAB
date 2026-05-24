@@ -1,9 +1,9 @@
 import { useEffect, useState, useCallback } from 'react'
 import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { Users, IndianRupee, TrendingUp, Clock, UserPlus, AlertCircle, Package, CalendarCheck, CalendarDays, ChevronLeft, ChevronRight, Eye, EyeOff, BarChart3, CheckCircle, XCircle, AlertTriangle } from 'lucide-react'
+import { Users, IndianRupee, TrendingUp, Clock, UserPlus, AlertCircle, Package, CalendarCheck, CalendarDays, ChevronLeft, ChevronRight, Eye, EyeOff, BarChart3, CheckCircle, XCircle, AlertTriangle, MessageSquare } from 'lucide-react'
 import AdminLayout from '../../components/admin/AdminLayout'
-import { getDashboard, updateAppointment } from '../../lib/api'
+import { getDashboard, updateAppointment, updateInquiry } from '../../lib/api'
 
 function StatCard({ icon: Icon, label, value, sub, color, to }) {
   const content = (
@@ -71,6 +71,13 @@ export default function Dashboard() {
       fetchDashboard()
       setCancelId(null)
       setCancelReason('')
+    } catch { /* ignore */ }
+  }
+
+  const handleResolveInquiry = async (id, resolved) => {
+    try {
+      await updateInquiry(id, { resolved })
+      fetchDashboard()
     } catch { /* ignore */ }
   }
 
@@ -215,6 +222,64 @@ export default function Dashboard() {
             <div className="mt-4 text-right">
               <Link to="/admin/appointments" className="text-teal text-sm font-medium hover:underline">View all →</Link>
             </div>
+
+            {/* Contact Inquiries */}
+            {(() => {
+              const inquiries = data.contactInquiries || []
+              const unresolvedCount = inquiries.filter(i => !i.resolved).length
+              return (
+                <div className="card mt-6">
+                  <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+                    <h2 className="font-display font-semibold text-navy flex items-center gap-2">
+                      <MessageSquare size={18} className="text-teal" />
+                      Contact Inquiries
+                      {unresolvedCount > 0 && (
+                        <span className="text-xs bg-teal/10 text-teal px-2 py-0.5 rounded-full font-medium">
+                          {unresolvedCount}
+                        </span>
+                      )}
+                    </h2>
+                  </div>
+                  {inquiries.length === 0 ? (
+                    <div className="px-5 py-8 text-center">
+                      <MessageSquare size={32} className="text-gray-300 mx-auto mb-2" />
+                      <p className="text-muted text-sm">No unresolved inquiries</p>
+                    </div>
+                  ) : (
+                    <div className="divide-y divide-gray-100">
+                      {inquiries.map((inq) => (
+                        <div key={inq.id} className="flex items-start justify-between px-5 py-3 gap-3">
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium text-navy text-sm">{inq.name}</span>
+                              <span className="text-muted text-xs">· {inq.phone}</span>
+                            </div>
+                            <p className="text-muted text-xs mt-0.5 truncate">{inq.message}</p>
+                            <span className="text-muted text-xs">
+                              {(() => {
+                                const mins = Math.floor((Date.now() - new Date(inq.createdAt).getTime()) / 60000)
+                                if (mins < 1) return 'just now'
+                                if (mins < 60) return `${mins}m ago`
+                                const hrs = Math.floor(mins / 60)
+                                if (hrs < 24) return `${hrs}h ago`
+                                return `${Math.floor(hrs / 24)}d ago`
+                              })()}
+                            </span>
+                          </div>
+                          <button
+                            onClick={() => handleResolveInquiry(inq.id, !inq.resolved)}
+                            className={`shrink-0 mt-0.5 ${inq.resolved ? 'text-green-500 hover:text-gray-400' : 'text-gray-400 hover:text-green-500'}`}
+                            title={inq.resolved ? 'Mark as unresolved' : 'Mark as resolved'}
+                          >
+                            <CheckCircle size={18} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )
+            })()}
 
             {/* Cancel Reason Modal */}
             {cancelId && (

@@ -34,6 +34,7 @@ router.get('/dashboard', async (req, res) => {
       todaysSchedule,
       visitorsToday,
       incompleteRegistrations,
+      contactInquiries,
     ] = await Promise.all([
       prisma.patient.count(),
       prisma.patient.count({ where: { enrolledAt: { gte: todayStart } } }),
@@ -94,6 +95,12 @@ router.get('/dashboard', async (req, res) => {
       }).then(rows => rows.length).catch(() => 0),
       // Incomplete (quick) registrations
       prisma.patient.count({ where: { registrationStatus: 'quick' } }),
+      // Unresolved contact inquiries
+      prisma.contactInquiry.findMany({
+        where: { resolved: false },
+        orderBy: { createdAt: 'desc' },
+        take: 20,
+      }),
     ])
 
     // Packages needing attention: active with <=2 sessions remaining
@@ -146,10 +153,26 @@ router.get('/dashboard', async (req, res) => {
       todaysSchedule,
       visitorsToday,
       incompleteRegistrations,
+      contactInquiries,
     })
   } catch (err) {
     console.error('[admin dashboard]', err)
     res.status(500).json({ error: 'Failed to load dashboard' })
+  }
+})
+
+// ─── PATCH /api/admin/inquiries/:id ─────────────────────────────────────────
+router.patch('/inquiries/:id', async (req, res) => {
+  try {
+    const { resolved } = req.body
+    const inquiry = await prisma.contactInquiry.update({
+      where: { id: req.params.id },
+      data: { resolved: Boolean(resolved) },
+    })
+    res.json(inquiry)
+  } catch (err) {
+    console.error('[admin inquiry update]', err)
+    res.status(500).json({ error: 'Failed to update inquiry' })
   }
 })
 

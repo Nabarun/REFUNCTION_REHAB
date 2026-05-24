@@ -57,6 +57,9 @@ export const getAdminPayments= (params) => api.get('/admin/payments',  { params 
 export const exportPatients  = ()       => api.get('/admin/patients/export', { responseType: 'blob' })
 export const exportPayments  = ()       => api.get('/admin/payments/export',  { responseType: 'blob' })
 
+// ─── Inquiries (Admin) ──────────────────────────────────────────────────────
+export const updateInquiry    = (id, data) => api.patch(`/admin/inquiries/${id}`, data)
+
 // ─── Packages & Visits ──────────────────────────────────────────────────────
 export const getPatientPackages = (patientId) => api.get('/admin/packages', { params: { patientId } })
 export const getPackageDetails  = (id)        => api.get(`/admin/packages/${id}`)
