@@ -96,5 +96,31 @@ input[type="number"] {
   }
   body {
     background: #fff !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+  .print-compact {
+    padding: 0 !important;
+    margin: 0 !important;
+    min-height: auto !important;
+  }
+  .print-compact > div {
+    padding: 0 !important;
+    max-width: 100% !important;
+  }
+  .print-compact .receipt-card {
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    border: none !important;
+  }
+  .print-compact .receipt-header {
+    padding: 12px 16px !important;
+  }
+  .print-compact .receipt-body {
+    padding: 8px 16px !important;
+    gap: 6px !important;
+  }
+  .print-compact .receipt-body > div {
+    padding-bottom: 4px !important;
   }
 }

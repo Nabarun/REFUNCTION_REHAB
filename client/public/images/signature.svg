@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 120" width="320" height="120">
+  <!-- Flowing cursive "N" -->
+  <path d="M30,85 C30,82 28,40 32,35 C36,30 38,32 38,38 L38,80 C38,82 39,30 42,25 C46,18 52,20 55,30 C58,40 60,75 62,80"
+    stroke="#1B2F5E" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- "eha" flowing -->
+  <path d="M62,65 C58,58 65,48 72,50 C78,52 76,62 70,64 C64,66 68,55 78,52 C85,50 82,64 88,62 C94,58 90,50 96,48 C100,46 104,50 104,56 C104,62 98,66 96,64"
+    stroke="#1B2F5E" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- Connecting stroke -->
+  <path d="M104,56 C110,48 115,44 120,46"
+    stroke="#1B2F5E" fill="none" stroke-width="2" stroke-linecap="round"/>
+  <!-- "T" with cross -->
+  <path d="M125,28 C125,30 124,75 126,80 M118,38 C122,36 130,35 134,36"
+    stroke="#1B2F5E" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- "ri" -->
+  <path d="M134,52 C136,50 138,64 140,66 C142,68 140,52 145,48 M148,46 C148,44 148,48 148,46 M148,52 C148,54 148,66 148,68"
+    stroke="#1B2F5E" fill="none" stroke-width="2.2" stroke-linecap="round"/>
+  <!-- "vedi" flowing -->
+  <path d="M152,52 C154,48 158,66 162,52 C166,38 168,66 174,52 C176,48 178,48 180,50 C182,54 180,62 176,64 C172,66 176,54 184,50 C188,48 186,66 190,52 M194,46 C194,44 194,48 194,46 M194,52 C194,54 194,66 194,68"
+    stroke="#1B2F5E" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- Underline flourish -->
+  <path d="M28,90 C60,88 140,82 200,86 C220,88 210,92 190,90"
+    stroke="#1B2F5E" fill="none" stroke-width="1.8" stroke-linecap="round" opacity="0.7"/>
+</svg>

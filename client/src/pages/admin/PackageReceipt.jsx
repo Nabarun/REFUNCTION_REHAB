@@ -78,29 +78,25 @@ export default function PackageReceipt() {
   const subTotal = services.reduce((sum, s) => sum + Number(s.amount || 0), 0)
 
   return (
-    <div className="min-h-screen bg-light py-10">
+    <div className="min-h-screen bg-light py-10 print-compact">
       <div className="max-w-2xl mx-auto px-4">
-        <div className="bg-white rounded-3xl shadow-xl overflow-hidden border border-gray-100">
+        <div className="bg-white rounded-3xl shadow-xl overflow-hidden border border-gray-100 receipt-card">
           {/* Header */}
-          <div className="bg-navy text-white p-8 text-center">
-            <div className="font-display font-bold text-2xl mb-1">
+          <div className="bg-navy text-white p-5 text-center receipt-header">
+            <div className="font-display font-bold text-xl">
               <span style={{ color: '#1A7F8E' }}>Re</span>Function Rehab
             </div>
-            <div className="text-white/70 text-sm mt-1">3001, Wing 3, SDA, Panathur, Bengaluru</div>
-            <div className="text-white/70 text-sm">Phone no.: 9900911795</div>
-            <div className="mt-3 bg-white/10 rounded-xl p-2.5 inline-block">
-              <CheckCircle size={28} className="text-green-400 mx-auto" />
-            </div>
+            <div className="text-white/70 text-xs mt-0.5">3001, Wing 3, SDA, Panathur, Bengaluru | Phone: 9900911795</div>
           </div>
 
-          <div className="p-6 space-y-5 text-sm">
+          <div className="p-4 space-y-3 text-sm receipt-body">
             {/* Tax Invoice Title */}
             <div className="text-center">
-              <h2 className="font-display font-bold text-lg text-navy">Tax Invoice</h2>
+              <h2 className="font-display font-bold text-base text-navy">Tax Invoice</h2>
             </div>
 
             {/* Invoice No & Date */}
-            <div className="grid grid-cols-2 gap-4 pb-4 border-b border-gray-100">
+            <div className="grid grid-cols-2 gap-3 pb-2 border-b border-gray-100">
               <div>
                 <span className="text-muted text-xs">Invoice No.</span>
                 <div className="font-semibold text-navy">{payment?.receiptNo || '—'}</div>
@@ -116,10 +112,10 @@ export default function PackageReceipt() {
             </div>
 
             {/* Bill To */}
-            <div className="pb-4 border-b border-gray-100">
+            <div className="pb-2 border-b border-gray-100">
               <span className="text-muted text-xs font-semibold uppercase tracking-wide">Bill To:</span>
-              <div className="font-semibold text-navy mt-1">{patient?.fullName || '—'}</div>
-              <div className="text-muted">{patient?.mobile || '—'}</div>
+              <div className="font-semibold text-navy text-sm">{patient?.fullName || '—'}</div>
+              <div className="text-muted text-xs">{patient?.mobile || '—'}</div>
             </div>
 
             {/* Services Table */}
@@ -127,23 +123,23 @@ export default function PackageReceipt() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="bg-light text-xs text-muted uppercase">
-                    <th className="text-left py-2.5 px-3 rounded-l-lg">#</th>
-                    <th className="text-left py-2.5 px-3">Service</th>
-                    <th className="text-right py-2.5 px-3">Qty</th>
-                    <th className="text-right py-2.5 px-3">Rate</th>
-                    <th className="text-right py-2.5 px-3">GST</th>
-                    <th className="text-right py-2.5 px-3 rounded-r-lg">Amount</th>
+                    <th className="text-left py-1.5 px-2 rounded-l-lg">#</th>
+                    <th className="text-left py-1.5 px-2">Service</th>
+                    <th className="text-right py-1.5 px-2">Qty</th>
+                    <th className="text-right py-1.5 px-2">Rate</th>
+                    <th className="text-right py-1.5 px-2">GST</th>
+                    <th className="text-right py-1.5 px-2 rounded-r-lg">Amount</th>
                   </tr>
                 </thead>
                 <tbody>
                   {services.map((s, i) => (
                     <tr key={i} className="border-b border-gray-100">
-                      <td className="py-2.5 px-3 text-muted">{i + 1}</td>
-                      <td className="py-2.5 px-3 text-navy">{s.description}</td>
-                      <td className="py-2.5 px-3 text-right text-navy">{s.qty}</td>
-                      <td className="py-2.5 px-3 text-right text-navy">₹{Number(s.unitRate).toLocaleString('en-IN')}</td>
-                      <td className="py-2.5 px-3 text-right text-navy">0%</td>
-                      <td className="py-2.5 px-3 text-right font-semibold text-navy">₹{Number(s.amount).toLocaleString('en-IN')}</td>
+                      <td className="py-1.5 px-2 text-muted">{i + 1}</td>
+                      <td className="py-1.5 px-2 text-navy">{s.description}</td>
+                      <td className="py-1.5 px-2 text-right text-navy">{s.qty}</td>
+                      <td className="py-1.5 px-2 text-right text-navy">₹{Number(s.unitRate).toLocaleString('en-IN')}</td>
+                      <td className="py-1.5 px-2 text-right text-navy">0%</td>
+                      <td className="py-1.5 px-2 text-right font-semibold text-navy">₹{Number(s.amount).toLocaleString('en-IN')}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -152,7 +148,7 @@ export default function PackageReceipt() {
 
             {/* Totals Breakdown */}
             <div className="flex justify-end">
-              <div className="w-64 space-y-2 text-sm">
+              <div className="w-60 space-y-1 text-sm">
                 <div className="flex justify-between text-muted">
                   <span>Sub Total</span>
                   <span>₹{subTotal.toLocaleString('en-IN')}</span>
@@ -165,11 +161,11 @@ export default function PackageReceipt() {
                   <span>CGST@0.0%</span>
                   <span>₹0</span>
                 </div>
-                <div className="flex justify-between font-bold text-white bg-teal rounded-lg px-3 py-2 text-base">
+                <div className="flex justify-between font-bold text-white bg-teal rounded-lg px-2.5 py-1.5 text-sm">
                   <span>Total</span>
                   <span>₹{totalAmount.toLocaleString('en-IN')}</span>
                 </div>
-                <div className="flex justify-between text-muted pt-1">
+                <div className="flex justify-between text-muted">
                   <span>Received</span>
                   <span>₹{amountPaid.toLocaleString('en-IN')}</span>
                 </div>
@@ -181,38 +177,38 @@ export default function PackageReceipt() {
             </div>
 
             {/* Invoice Amount In Words */}
-            <div className="bg-light rounded-xl p-3 border border-gray-100">
+            <div className="bg-light rounded-lg p-2 border border-gray-100">
               <span className="text-muted text-xs font-semibold uppercase tracking-wide">Invoice Amount In Words:</span>
-              <div className="font-semibold text-navy mt-1">{numberToWords(totalAmount)}</div>
+              <div className="font-semibold text-navy text-sm">{numberToWords(totalAmount)}</div>
             </div>
 
             {/* Referred By */}
-            <div className="pb-4 border-b border-gray-100">
+            <div className="pb-2 border-b border-gray-100">
               <span className="text-muted text-xs">Referred By</span>
               <input
-                className="no-print input-field text-sm py-2 mt-1"
+                className="no-print input-field text-sm py-1.5 mt-0.5"
                 value={referredBy}
                 onChange={(e) => setReferredBy(e.target.value)}
                 placeholder="Enter referral source..."
               />
-              <div className="hidden print:block font-semibold text-navy mt-1">
+              <div className="hidden print:block font-semibold text-navy text-sm">
                 {referredBy || '—'}
               </div>
             </div>
 
             {/* Terms and Conditions */}
-            <div className="border-t border-gray-100 pt-4">
+            <div className="border-t border-gray-100 pt-2">
               <span className="text-muted text-xs font-semibold uppercase tracking-wide">Terms And Conditions:</span>
-              <p className="text-muted text-sm mt-1">Thank you for doing business with us.</p>
+              <p className="text-muted text-xs mt-0.5">Thank you for doing business with us.</p>
             </div>
 
             {/* Authorized Signatory */}
-            <div className="text-right pt-6">
+            <div className="text-right pt-2">
               <div className="text-sm font-semibold text-navy">For: ReFunction Rehab</div>
-              <div className="mt-4 inline-block">
-                <img src="/images/dr-neha-signature.png" alt="Dr. Neha Trivedi Signature" className="h-16 ml-auto" />
-                <div className="border-t border-gray-300 w-48 mt-1">
-                  <div className="text-xs text-muted mt-1">Authorized Signatory</div>
+              <div className="mt-2 inline-block">
+                <img src="/images/dr-neha-signature.png" alt="Dr. Neha Trivedi Signature" className="h-14 ml-auto" />
+                <div className="border-t border-gray-300 w-48 mt-0.5">
+                  <div className="text-xs text-muted mt-0.5">Authorized Signatory</div>
                 </div>
               </div>
             </div>
