@@ -1,0 +1,154 @@
+# Database Migrations
+
+Use this skill whenever you need to change the Prisma schema, create a migration, or troubleshoot database issues for ReFunction Rehab.
+
+## Architecture
+
+| Component | Detail |
+|-----------|--------|
+| ORM | Prisma 5.x |
+| Database | PostgreSQL 16-alpine (Docker) |
+| Schema file | `server/prisma/schema.prisma` |
+| Migrations dir | `server/prisma/migrations/` |
+| Local DB URL | `postgresql://refunction:rehab_secret@localhost:5432/refunction_rehab` |
+| Startup command | `npx prisma migrate deploy && node src/index.js` (Dockerfile CMD) |
+
+## Prisma Models (13)
+
+| Model | Table Name | Primary Key | Description |
+|-------|-----------|-------------|-------------|
+| Patient | `patients` | `String @id` (RF-XXXX) | Patient enrollment records |
+| Payment | `payments` | `cuid()` | Payment transactions |
+| ContactInquiry | `contact_inquiries` | `cuid()` | Contact form submissions |
+| Staff | `staff` | `cuid()` | Admin/staff accounts |
+| Testimonial | `testimonials` | `cuid()` | Patient testimonials |
+| TreatmentPackage | `treatment_packages` | `cuid()` | Session packages |
+| PatientVisit | `patient_visits` | `cuid()` | Visit records per package |
+| DoctorAvailability | `doctor_availability` | `cuid()` | Weekly schedule blocks |
+| SlotOverride | `slot_overrides` | `cuid()` | Date-specific overrides |
+| Appointment | `appointments` | `cuid()` | Booked appointments |
+| PageView | `page_views` | `cuid()` | Analytics page views |
+| Notification | `notifications` | `cuid()` | WhatsApp notifications |
+| DailyStats | `daily_stats` | `cuid()` | Aggregated daily analytics |
+
+## Key Relationships
+
+```
+Patient 1──* Payment
+Patient 1──* TreatmentPackage
+Patient 1──* Appointment
+Patient 1──* Notification
+Payment 1──1 TreatmentPackage (optional)
+TreatmentPackage 1──* PatientVisit
+TreatmentPackage 1──* Appointment
+```
+
+## Key Files
+
+| File | Purpose |
+|------|---------|
+| `server/prisma/schema.prisma` | Single source of truth for DB schema |
+| `server/prisma/migrations/` | Migration history (timestamped folders) |
+| `server/src/lib/prisma.js` | Prisma client singleton |
+| `docker-compose.yml` | Database service configuration |
+| `server/Dockerfile` | Runs `prisma migrate deploy` on startup |
+
+## Operations
+
+### Creating a New Migration
+
+The Docker container is **non-interactive**, so `prisma migrate dev` won't work inside it. Use this manual workflow:
+
+**Step 1 — Edit the schema:**
+```bash
+# Edit server/prisma/schema.prisma
+```
+
+**Step 2 — Generate the migration SQL diff:**
+```bash
+DATABASE_URL="postgresql://refunction:rehab_secret@localhost:5432/refunction_rehab" \
+  npx prisma migrate diff \
+  --from-schema-datasource ./server/prisma/schema.prisma \
+  --to-schema-datamodel ./server/prisma/schema.prisma \
+  --script
+```
+
+**Step 3 — Create the migration folder:**
+```bash
+mkdir -p ./server/prisma/migrations/<YYYYMMDDHHMMSS>_<describe_change>/
+```
+Save the SQL output from Step 2 into `migration.sql` inside that folder.
+
+**Step 4 — Apply the migration locally:**
+```bash
+DATABASE_URL="postgresql://refunction:rehab_secret@localhost:5432/refunction_rehab" \
+  npx prisma migrate deploy
+```
+
+**Step 5 — Regenerate Prisma client:**
+```bash
+cd server && npx prisma generate
+```
+
+**Step 6 — Verify:**
+```bash
+ls ./server/prisma/migrations/
+```
+
+### Adding a Field to an Existing Model
+
+1. Add the field in `schema.prisma` (use `?` for optional, `@default()` for defaults)
+2. Follow the "Creating a New Migration" steps above
+3. Update any route handlers that read/write the affected model
+4. Update the client API calls if the field is exposed
+
+### Adding a New Model
+
+1. Define the model in `schema.prisma` with `@@map("table_name")`
+2. Add any relations to existing models (update both sides)
+3. Follow the "Creating a New Migration" steps
+4. Create route file in `server/src/routes/`
+5. Mount the route in `server/src/index.js`
+6. Add client API functions in `client/src/lib/api.js`
+
+### Checking Migration Status
+
+```bash
+# Local
+DATABASE_URL="postgresql://refunction:rehab_secret@localhost:5432/refunction_rehab" \
+  npx prisma migrate status
+
+# Production (via SSH)
+sshpass -p 'R@jeshshukl@123' ssh -o StrictHostKeyChecking=no \
+  -o PreferredAuthentications=password -o KbdInteractiveAuthentication=no \
+  root@187.127.147.87 \
+  "docker exec refunction_server npx prisma migrate status"
+```
+
+## Business Rules
+
+- The schema file (`schema.prisma`) is the **single source of truth** — never modify the database directly
+- All migrations must be committed to git so they're included in the Docker image
+- The server container runs `prisma migrate deploy` automatically on startup
+- Never use `prisma migrate dev` in production or Docker containers (non-interactive)
+- Patient IDs use a custom sequential format (RF-XXXX) via `patient_serial_seq` — not auto-generated by Prisma
+- Use `prisma.$transaction()` for operations that must be atomic (e.g., payment + package creation)
+
+## Common Issues
+
+**"prisma migrate dev" fails as non-interactive** — The Docker container is non-interactive. Use `prisma migrate diff` to generate SQL, create the migration file manually, then apply with `prisma migrate deploy`.
+
+**"Failed to enroll patient" / Null constraint violation** — A schema change was made but the migration file wasn't included in the Docker build. Ensure the migration folder exists under `server/prisma/migrations/` before building.
+
+**Migration not applied on VPS** — The server runs `prisma migrate deploy` on startup. If missing, the migration file wasn't in the image. Rebuild and redeploy.
+
+**"The migration is already recorded as applied"** — The migration was applied but the schema doesn't match. Check if you need a new migration for additional changes.
+
+**Prisma client out of sync** — Run `npx prisma generate` after schema changes to regenerate the client.
+
+## Related Skills
+
+- [Deployment](../deployment/SKILL.md) — Full build-push-deploy pipeline when schema changes
+- [Patient Management](../patient-management/SKILL.md) — Patient model details
+- [Payment & Billing](../payment-billing/SKILL.md) — Payment model details
+- [Treatment Packages](../treatment-packages/SKILL.md) — Package + Visit models
