@@ -1,7 +1,6 @@
 const welcomeMessage = require('./welcome-message')
 const packageMilestone = require('./package-milestone')
 const packageCompletion = require('./package-completion')
-const appointmentReminder = require('./appointment-reminder')
 const noShowFollowup = require('./no-show-followup')
 const inactivePatient = require('./inactive-patient')
 
@@ -13,10 +12,9 @@ function startWorkflowEngine() {
   noShowFollowup.register()
 
   // Start cron-based workflows
-  appointmentReminder.start()
   inactivePatient.start()
 
-  console.log('[WorkflowEngine] Started — 4 event listeners, 2 cron jobs')
+  console.log('[WorkflowEngine] Started — 4 event listeners, 1 cron job')
 }
 
 module.exports = { startWorkflowEngine }
