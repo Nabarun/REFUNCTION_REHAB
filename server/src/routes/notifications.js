@@ -2,6 +2,7 @@ const router = require('express').Router()
 const prisma = require('../lib/prisma')
 const { requireAuth } = require('../middleware/auth')
 const { retryNotification } = require('../services/notifications/whatsapp')
+const { retrySMSNotification } = require('../services/notifications/sms')
 
 router.use(requireAuth)
 
@@ -13,6 +14,7 @@ router.get('/', async (req, res) => {
     const type   = req.query.type || ''
     const status = req.query.status || ''
     const patientId = req.query.patientId || ''
+    const channel = req.query.channel || ''
     const from   = req.query.from ? new Date(req.query.from) : undefined
     const to     = req.query.to   ? new Date(req.query.to)   : undefined
 
@@ -20,6 +22,7 @@ router.get('/', async (req, res) => {
       ...(type && { type }),
       ...(status && { status }),
       ...(patientId && { patientId }),
+      ...(channel && { channel }),
       ...(from || to ? {
         createdAt: {
           ...(from && { gte: from }),
@@ -67,7 +70,15 @@ router.get('/', async (req, res) => {
 // ─── POST /api/admin/notifications/:id/retry ─────────────────────────────────
 router.post('/:id/retry', async (req, res) => {
   try {
-    const notification = await retryNotification(req.params.id)
+    const existing = await prisma.notification.findUnique({
+      where: { id: req.params.id },
+      select: { channel: true },
+    })
+    if (!existing) return res.status(404).json({ error: 'Notification not found' })
+
+    const notification = existing.channel === 'sms'
+      ? await retrySMSNotification(req.params.id)
+      : await retryNotification(req.params.id)
     res.json({ message: 'Notification retry initiated', notification })
   } catch (err) {
     console.error('[notifications retry]', err)

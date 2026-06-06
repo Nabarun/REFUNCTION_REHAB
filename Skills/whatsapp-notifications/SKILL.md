@@ -253,4 +253,5 @@ From sandbox to production:
 - [Patient Management](../patient-management/SKILL.md) — `patient:enrolled` event source
 - [Treatment Packages](../treatment-packages/SKILL.md) — `visit:recorded` and `package:completed` events
 - [Appointment Booking](../appointment-booking/SKILL.md) — `appointment:no-show` event, reminder cron
+- [SMS Notifications](../sms-notifications/SKILL.md) — Parallel SMS channel via Fast2SMS
 - [Deployment](../deployment/SKILL.md) — Twilio environment variables on VPS

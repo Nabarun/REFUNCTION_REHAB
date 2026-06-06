@@ -2,6 +2,7 @@ const cron = require('node-cron')
 const prisma = require('../../lib/prisma')
 const { renderTemplate } = require('../notifications/templates')
 const { sendWhatsApp } = require('../notifications/whatsapp')
+const { sendSMS } = require('../notifications/sms')
 
 function start() {
   // Run daily at 10:00 AM
@@ -23,7 +24,7 @@ async function checkInactivePatients() {
   // Find patients with at least one active package whose last visit is > 30 days ago
   const patients = await prisma.patient.findMany({
     where: {
-      whatsappConsent: true,
+      OR: [{ whatsappConsent: true }, { smsConsent: true }],
       packages: {
         some: { status: 'active' },
       },
@@ -32,6 +33,8 @@ async function checkInactivePatients() {
       id: true,
       fullName: true,
       mobile: true,
+      whatsappConsent: true,
+      smsConsent: true,
       packages: {
         where: { status: 'active' },
         select: {
@@ -80,13 +83,29 @@ async function checkInactivePatients() {
         name: firstName,
       })
 
-      await sendWhatsApp({
-        patientId: patient.id,
-        mobile: patient.mobile,
-        message,
-        type: 're-engagement',
-        templateName,
-      })
+      if (patient.whatsappConsent) {
+        await sendWhatsApp({
+          patientId: patient.id,
+          mobile: patient.mobile,
+          message,
+          type: 're-engagement',
+          templateName,
+        })
+      }
+
+      if (patient.smsConsent) {
+        try {
+          await sendSMS({
+            patientId: patient.id,
+            mobile: patient.mobile,
+            message,
+            type: 're-engagement',
+            templateName,
+          })
+        } catch (err) {
+          console.error(`[Workflow:inactive-patient:sms] Failed for patient ${patient.id}:`, err)
+        }
+      }
     } catch (err) {
       console.error(`[Workflow:inactive-patient] Failed for patient ${patient.id}:`, err)
     }

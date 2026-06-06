@@ -2,6 +2,7 @@ const cron = require('node-cron')
 const prisma = require('../../lib/prisma')
 const { renderTemplate } = require('../notifications/templates')
 const { sendWhatsApp } = require('../notifications/whatsapp')
+const { sendSMS } = require('../notifications/sms')
 
 function start() {
   // Run every hour at :00
@@ -31,7 +32,7 @@ async function sendReminders() {
       },
     },
     include: {
-      patient: { select: { id: true, fullName: true, mobile: true, whatsappConsent: true } },
+      patient: { select: { id: true, fullName: true, mobile: true, whatsappConsent: true, smsConsent: true } },
     },
   })
 
@@ -42,7 +43,6 @@ async function sendReminders() {
     apptDateTime.setHours(h, m, 0, 0)
 
     if (apptDateTime <= now || apptDateTime > in24h) continue
-    if (!appt.patient.whatsappConsent) continue
 
     try {
       const firstName = appt.patient.fullName.split(' ')[0]
@@ -53,14 +53,31 @@ async function sendReminders() {
         date: appt.appointmentDate.toISOString().slice(0, 10),
       })
 
-      await sendWhatsApp({
-        patientId: appt.patient.id,
-        mobile: appt.patient.mobile,
-        message,
-        type: 'reminder',
-        templateName,
-        metadata: { appointmentId: appt.id },
-      })
+      if (appt.patient.whatsappConsent) {
+        await sendWhatsApp({
+          patientId: appt.patient.id,
+          mobile: appt.patient.mobile,
+          message,
+          type: 'reminder',
+          templateName,
+          metadata: { appointmentId: appt.id },
+        })
+      }
+
+      if (appt.patient.smsConsent) {
+        try {
+          await sendSMS({
+            patientId: appt.patient.id,
+            mobile: appt.patient.mobile,
+            message,
+            type: 'reminder',
+            templateName,
+            metadata: { appointmentId: appt.id },
+          })
+        } catch (err) {
+          console.error(`[Workflow:appointment-reminder:sms] Failed for appt ${appt.id}:`, err)
+        }
+      }
 
       await prisma.appointment.update({
         where: { id: appt.id },

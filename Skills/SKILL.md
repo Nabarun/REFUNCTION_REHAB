@@ -76,6 +76,7 @@ Patient · Payment · ContactInquiry · Staff · Testimonial · TreatmentPackage
 | 11 | [Database Migrations](database-migrations/SKILL.md) | `Skills/database-migrations/` | Prisma schema changes, migration creation |
 | 12 | [Frontend Development](frontend-development/SKILL.md) | `Skills/frontend-development/` | React patterns, routing, Tailwind, components, forms |
 | 13 | [Deployment](deployment/SKILL.md) | `Skills/deployment/` | Building, pushing, deploying to VPS |
+| 14 | [SMS Notifications](sms-notifications/SKILL.md) | `Skills/sms-notifications/` | Fast2SMS, SMS templates, SMS workflows |
 
 ## Data Persistence Rules
 
@@ -91,5 +92,6 @@ DATABASE_URL, JWT_SECRET, RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET,
 SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, SMTP_FROM,
 CLOUDINARY_URL, TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN,
 TWILIO_WHATSAPP_FROM, WHATSAPP_COUNTRY_CODE, WHATSAPP_ENABLED,
+FAST2SMS_API_KEY, SMS_ENABLED, SMS_SENDER_ID, SMS_ROUTE,
 VITE_API_URL
 ```

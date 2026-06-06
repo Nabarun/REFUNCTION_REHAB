@@ -47,6 +47,7 @@ model Patient {
   registrationStatus String  @default("full")
   enrolledAt        DateTime  @default(now())
   whatsappConsent   Boolean   @default(true)
+  smsConsent        Boolean   @default(true)
   payments          Payment[]
   packages          TreatmentPackage[]
   appointments      Appointment[]
