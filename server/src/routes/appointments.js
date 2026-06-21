@@ -3,6 +3,51 @@ const prisma      = require('../lib/prisma')
 const eventBus    = require('../lib/events')
 const rateLimit   = require('express-rate-limit')
 const { requireAuth } = require('../middleware/auth')
+const { sendWhatsApp } = require('../services/notifications/whatsapp')
+
+// Sends a WhatsApp alert to the clinic/doctor when a new appointment is booked.
+// Gated on CLINIC_WHATSAPP_TO; runs in dry-run unless WHATSAPP_ENABLED === 'true'.
+async function notifyDoctorOfBooking(appointment) {
+  const to = process.env.CLINIC_WHATSAPP_TO
+  if (!to) return // not configured → skip silently
+
+  const dateStr = new Date(appointment.appointmentDate).toISOString().slice(0, 10)
+  const name = appointment.patient?.fullName || 'Unknown'
+  const mobile = appointment.patient?.mobile || 'n/a'
+  const sessionType = appointment.sessionType || 'In-Person'
+
+  // Human-readable copy stored in the Notification log (and the fallback body
+  // if no Content template is configured).
+  const message =
+    `🗓️ New appointment booked\n` +
+    `Patient: ${name} (${mobile})\n` +
+    `Service: ${appointment.serviceType}\n` +
+    `Date: ${dateStr} at ${appointment.startTime}\n` +
+    `Type: ${sessionType}`
+
+  const contentSid = process.env.TWILIO_BOOKING_CONTENT_SID
+  const contentVariables = contentSid
+    ? {
+        1: name,
+        2: mobile,
+        3: appointment.serviceType,
+        4: dateStr,
+        5: appointment.startTime,
+        6: sessionType,
+      }
+    : undefined
+
+  await sendWhatsApp({
+    patientId: appointment.patientId,
+    mobile: to,
+    message,
+    type: 'new-booking',
+    templateName: 'new_booking_alert',
+    metadata: { appointmentId: appointment.id, recipient: 'clinic' },
+    contentSid,
+    contentVariables,
+  })
+}
 
 const quickRegLimiter = rateLimit({
   windowMs: 60 * 1000,
@@ -279,6 +324,11 @@ router.post('/', async (req, res) => {
     })
 
     res.status(201).json(appointment)
+
+    // Fire-and-forget: alert the clinic/doctor. Never blocks or fails the booking.
+    notifyDoctorOfBooking(appointment).catch((err) =>
+      console.error('[appointments] doctor WhatsApp alert failed:', err.message)
+    )
   } catch (err) {
     if (err.message === 'SLOT_FULL') {
       return res.status(409).json({ error: 'This slot is fully booked. Please choose another time.' })
