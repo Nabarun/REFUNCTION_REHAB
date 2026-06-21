@@ -26,7 +26,7 @@ function formatWhatsAppNumber(mobile) {
 /**
  * Send a WhatsApp message and log to Notification table.
  */
-async function sendWhatsApp({ patientId, mobile, message, type, templateName, metadata }) {
+async function sendWhatsApp({ patientId, mobile, message, type, templateName, metadata, contentSid, contentVariables }) {
   const toNumber = formatWhatsAppNumber(mobile)
 
   // Create pending notification record
@@ -56,11 +56,23 @@ async function sendWhatsApp({ patientId, mobile, message, type, templateName, me
     }
 
     const client = getTwilioClient()
-    const result = await client.messages.create({
+    const createOpts = {
       from: process.env.TWILIO_WHATSAPP_FROM,
       to: toNumber,
-      body: message,
-    })
+    }
+    if (contentSid) {
+      // Interactive / approved template message (e.g. quick-reply buttons).
+      createOpts.contentSid = contentSid
+      if (contentVariables) {
+        createOpts.contentVariables =
+          typeof contentVariables === 'string'
+            ? contentVariables
+            : JSON.stringify(contentVariables)
+      }
+    } else {
+      createOpts.body = message
+    }
+    const result = await client.messages.create(createOpts)
 
     await prisma.notification.update({
       where: { id: notification.id },

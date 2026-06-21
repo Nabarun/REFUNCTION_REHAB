@@ -136,6 +136,21 @@ export default function Footer() {
           <p>Designed with care for better health outcomes.</p>
         </div>
       </div>
+
+      {/* Powered by */}
+      <div className="border-t border-white/10 bg-black/20">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 text-center text-xs text-white/50">
+          Powered by{' '}
+          <a
+            href="https://kaushalstack.com"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-teal hover:text-white transition-colors font-medium"
+          >
+            kaushalstack.com
+          </a>
+        </div>
+      </div>
     </footer>
   )
 }
