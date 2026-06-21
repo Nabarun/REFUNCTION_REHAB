@@ -73,88 +73,94 @@ function generateSlots(startTime, endTime, duration) {
   return slots
 }
 
+// ─── Reusable: compute slot availability for a single date ───────────────────
+// Returns { date, blocked, reason?, slots } where each slot carries booked/available.
+// Used by GET /slots and by the WhatsApp "suggest a slot" webhook.
+async function computeDaySlots(date) {
+  const targetDate = new Date(date + 'T00:00:00')
+  const dayOfWeek  = targetDate.getDay() // 0=Sun
+
+  // 1. Get availability blocks for this day of week
+  const availability = await prisma.doctorAvailability.findMany({
+    where: { dayOfWeek, isActive: true },
+    orderBy: { startTime: 'asc' },
+  })
+
+  // 2. Get overrides for this date
+  const dayStart = new Date(date + 'T00:00:00')
+  const dayEnd   = new Date(date + 'T23:59:59')
+  const overrides = await prisma.slotOverride.findMany({
+    where: { date: { gte: dayStart, lte: dayEnd } },
+  })
+
+  // Check for day-level block (override with no startTime = whole day blocked)
+  const dayBlocked = overrides.some(o => o.isBlocked && !o.startTime)
+  if (dayBlocked) {
+    const reason = overrides.find(o => o.isBlocked && !o.startTime)?.reason
+    return { date, blocked: true, reason: reason || 'Unavailable', slots: [] }
+  }
+
+  // 3. Generate time slots from availability
+  const allSlots = []
+  for (const block of availability) {
+    const slots = generateSlots(block.startTime, block.endTime, block.slotDuration)
+    for (const slot of slots) {
+      // Check slot-level overrides
+      const slotBlocked = overrides.some(o =>
+        o.isBlocked && o.startTime && o.startTime === slot.startTime
+      )
+      if (!slotBlocked) {
+        allSlots.push({
+          startTime:    slot.startTime,
+          endTime:      slot.endTime,
+          sessionType:  block.sessionType,
+          label:        block.label,
+          maxPatients:  block.maxPatients,
+        })
+      }
+    }
+  }
+
+  // 4. Count existing non-cancelled appointments per slot
+  const appointments = await prisma.appointment.findMany({
+    where: {
+      appointmentDate: { gte: dayStart, lte: dayEnd },
+      status: { notIn: ['cancelled'] },
+    },
+    select: { startTime: true },
+  })
+
+  const bookingCounts = {}
+  for (const appt of appointments) {
+    bookingCounts[appt.startTime] = (bookingCounts[appt.startTime] || 0) + 1
+  }
+
+  // 5. Calculate availability, filter past slots if today
+  const now = new Date()
+  const isToday = date === now.toISOString().slice(0, 10)
+
+  const result = allSlots.map(slot => {
+    const booked    = bookingCounts[slot.startTime] || 0
+    const available = Math.max(0, slot.maxPatients - booked)
+    return { ...slot, booked, available }
+  }).filter(slot => {
+    if (!isToday) return true
+    // Slot must be at least 2 hours from now
+    const [h, m] = slot.startTime.split(':').map(Number)
+    const slotTime = new Date(now)
+    slotTime.setHours(h, m, 0, 0)
+    return slotTime.getTime() > now.getTime() + 2 * 60 * 60 * 1000
+  })
+
+  return { date, blocked: false, slots: result }
+}
+
 // ─── PUBLIC: GET /api/appointments/slots?date=YYYY-MM-DD ─────────────────────
 router.get('/slots', async (req, res) => {
   try {
     const { date } = req.query
     if (!date) return res.status(400).json({ error: 'date query param is required' })
-
-    const targetDate = new Date(date + 'T00:00:00')
-    const dayOfWeek  = targetDate.getDay() // 0=Sun
-
-    // 1. Get availability blocks for this day of week
-    const availability = await prisma.doctorAvailability.findMany({
-      where: { dayOfWeek, isActive: true },
-      orderBy: { startTime: 'asc' },
-    })
-
-    // 2. Get overrides for this date
-    const dayStart = new Date(date + 'T00:00:00')
-    const dayEnd   = new Date(date + 'T23:59:59')
-    const overrides = await prisma.slotOverride.findMany({
-      where: { date: { gte: dayStart, lte: dayEnd } },
-    })
-
-    // Check for day-level block (override with no startTime = whole day blocked)
-    const dayBlocked = overrides.some(o => o.isBlocked && !o.startTime)
-    if (dayBlocked) {
-      const reason = overrides.find(o => o.isBlocked && !o.startTime)?.reason
-      return res.json({ date, blocked: true, reason: reason || 'Unavailable', slots: [] })
-    }
-
-    // 3. Generate time slots from availability
-    const allSlots = []
-    for (const block of availability) {
-      const slots = generateSlots(block.startTime, block.endTime, block.slotDuration)
-      for (const slot of slots) {
-        // Check slot-level overrides
-        const slotBlocked = overrides.some(o =>
-          o.isBlocked && o.startTime && o.startTime === slot.startTime
-        )
-        if (!slotBlocked) {
-          allSlots.push({
-            startTime:    slot.startTime,
-            endTime:      slot.endTime,
-            sessionType:  block.sessionType,
-            label:        block.label,
-            maxPatients:  block.maxPatients,
-          })
-        }
-      }
-    }
-
-    // 4. Count existing non-cancelled appointments per slot
-    const appointments = await prisma.appointment.findMany({
-      where: {
-        appointmentDate: { gte: dayStart, lte: dayEnd },
-        status: { notIn: ['cancelled'] },
-      },
-      select: { startTime: true },
-    })
-
-    const bookingCounts = {}
-    for (const appt of appointments) {
-      bookingCounts[appt.startTime] = (bookingCounts[appt.startTime] || 0) + 1
-    }
-
-    // 5. Calculate availability, filter past slots if today
-    const now = new Date()
-    const isToday = date === now.toISOString().slice(0, 10)
-
-    const result = allSlots.map(slot => {
-      const booked    = bookingCounts[slot.startTime] || 0
-      const available = Math.max(0, slot.maxPatients - booked)
-      return { ...slot, booked, available }
-    }).filter(slot => {
-      if (!isToday) return true
-      // Slot must be at least 2 hours from now
-      const [h, m] = slot.startTime.split(':').map(Number)
-      const slotTime = new Date(now)
-      slotTime.setHours(h, m, 0, 0)
-      return slotTime.getTime() > now.getTime() + 2 * 60 * 60 * 1000
-    })
-
-    res.json({ date, blocked: false, slots: result })
+    res.json(await computeDaySlots(date))
   } catch (err) {
     console.error('[appointments slots]', err)
     res.status(500).json({ error: 'Failed to fetch slots' })
@@ -558,3 +564,4 @@ router.patch('/:id', async (req, res) => {
 })
 
 module.exports = router
+module.exports.computeDaySlots = computeDaySlots

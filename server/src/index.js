@@ -15,6 +15,7 @@ const appointmentRoutes  = require('./routes/appointments')
 const availabilityRoutes = require('./routes/availability')
 const trackRoutes           = require('./routes/track')
 const notificationRoutes    = require('./routes/notifications')
+const whatsappRoutes        = require('./routes/whatsapp')
 const { startAnalyticsJobs } = require('./lib/analyticsAggregator')
 const { startWorkflowEngine } = require('./services/workflows/engine')
 
@@ -49,6 +50,7 @@ app.use('/api/admin/packages', packageRoutes)
 app.use('/api/appointments',        appointmentRoutes)
 app.use('/api/admin/availability',  availabilityRoutes)
 app.use('/api/admin/notifications', notificationRoutes)
+app.use('/api/whatsapp',            whatsappRoutes)
 
 // ─── 404 handler ─────────────────────────────────────────────────────────────
 app.use((req, res) => {

@@ -14,7 +14,7 @@ const path = require('path')
 require('dotenv').config({ path: path.resolve(__dirname, '../../.env.local'), override: true })
 require('dotenv').config({ path: path.resolve(__dirname, '../../.env') })
 
-const FRIENDLY_NAME = 'refunction_new_booking_alert'
+const FRIENDLY_NAME = 'refunction_new_booking_alert_v2'
 const { TWILIO_ACCOUNT_SID: SID, TWILIO_AUTH_TOKEN: TOKEN } = process.env
 
 const BODY =
@@ -50,7 +50,7 @@ async function create() {
           body: BODY,
           actions: [
             { title: 'Confirm', id: 'confirm' },
-            { title: 'Decline', id: 'decline' },
+            { title: 'Suggest a slot', id: 'suggest_slot' },
           ],
         },
       },
