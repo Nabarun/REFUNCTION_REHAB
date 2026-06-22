@@ -28,6 +28,10 @@ function formatWhatsAppNumber(mobile) {
  */
 async function sendWhatsApp({ patientId, mobile, message, type, templateName, metadata, contentSid, contentVariables }) {
   const toNumber = formatWhatsAppNumber(mobile)
+  console.log(
+    `[sendWhatsApp] start type=${type} to=${toNumber} mode=${contentSid ? 'contentSid:' + contentSid : 'plain-body'} ` +
+    `enabled=${process.env.WHATSAPP_ENABLED} from=${process.env.TWILIO_WHATSAPP_FROM || 'MISSING'}`
+  )
 
   // Create pending notification record
   const notification = await prisma.notification.create({
@@ -42,11 +46,12 @@ async function sendWhatsApp({ patientId, mobile, message, type, templateName, me
       metadata: metadata || null,
     },
   })
+  console.log(`[sendWhatsApp] notification row ${notification.id} created (pending)`)
 
   try {
     if (process.env.WHATSAPP_ENABLED !== 'true') {
       // Dry-run mode
-      console.log(`[WhatsApp DRY-RUN] To: ${toNumber} | Type: ${type}`)
+      console.log(`[WhatsApp DRY-RUN] To: ${toNumber} | Type: ${type} (WHATSAPP_ENABLED=${process.env.WHATSAPP_ENABLED || 'unset'})`)
       console.log(`[WhatsApp DRY-RUN] Message: ${message}`)
       await prisma.notification.update({
         where: { id: notification.id },
@@ -56,6 +61,9 @@ async function sendWhatsApp({ patientId, mobile, message, type, templateName, me
     }
 
     const client = getTwilioClient()
+    if (!client) {
+      throw new Error('Twilio client not initialised (check TWILIO_ACCOUNT_SID / TWILIO_AUTH_TOKEN / WHATSAPP_ENABLED)')
+    }
     const createOpts = {
       from: process.env.TWILIO_WHATSAPP_FROM,
       to: toNumber,
@@ -72,6 +80,7 @@ async function sendWhatsApp({ patientId, mobile, message, type, templateName, me
     } else {
       createOpts.body = message
     }
+    console.log(`[sendWhatsApp] calling twilio.messages.create from=${createOpts.from} to=${createOpts.to} contentSid=${createOpts.contentSid || 'none'} bodyChars=${createOpts.body ? createOpts.body.length : 0}`)
     const result = await client.messages.create(createOpts)
 
     await prisma.notification.update({
@@ -79,13 +88,17 @@ async function sendWhatsApp({ patientId, mobile, message, type, templateName, me
       data: { status: 'sent', twilioSid: result.sid, sentAt: new Date() },
     })
 
-    console.log(`[WhatsApp] Sent ${type} to ${toNumber} (SID: ${result.sid})`)
+    console.log(`[WhatsApp] Sent ${type} to ${toNumber} (SID: ${result.sid}, status: ${result.status})`)
     return notification
   } catch (err) {
-    console.error(`[WhatsApp] Failed to send ${type} to ${toNumber}:`, err.message)
+    console.error(
+      `[WhatsApp] Failed to send ${type} to ${toNumber}: ` +
+      `code=${err.code || 'n/a'} status=${err.status || 'n/a'} message=${err.message} ` +
+      `moreInfo=${err.moreInfo || 'n/a'}`
+    )
     await prisma.notification.update({
       where: { id: notification.id },
-      data: { status: 'failed', errorMessage: err.message },
+      data: { status: 'failed', errorMessage: `[${err.code || 'n/a'}] ${err.message}` },
     })
     return notification
   }

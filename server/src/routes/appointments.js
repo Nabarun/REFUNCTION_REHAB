@@ -8,8 +8,22 @@ const { sendWhatsApp } = require('../services/notifications/whatsapp')
 // Sends a WhatsApp alert to the clinic/doctor when a new appointment is booked.
 // Gated on CLINIC_WHATSAPP_TO; runs in dry-run unless WHATSAPP_ENABLED === 'true'.
 async function notifyDoctorOfBooking(appointment) {
-  const to = process.env.CLINIC_WHATSAPP_TO
-  if (!to) return // not configured → skip silently
+  const to        = process.env.CLINIC_WHATSAPP_TO
+  const enabled   = process.env.WHATSAPP_ENABLED
+  const contentSid = process.env.TWILIO_BOOKING_CONTENT_SID
+  console.log(
+    `[notifyDoctorOfBooking] invoked appt=${appointment.id} ` +
+    `CLINIC_WHATSAPP_TO=${to ? 'set' : 'MISSING'} ` +
+    `WHATSAPP_ENABLED=${enabled || 'unset'} ` +
+    `TWILIO_BOOKING_CONTENT_SID=${contentSid ? 'set' : 'MISSING'} ` +
+    `TWILIO_ACCOUNT_SID=${process.env.TWILIO_ACCOUNT_SID ? 'set' : 'MISSING'} ` +
+    `TWILIO_AUTH_TOKEN=${process.env.TWILIO_AUTH_TOKEN ? 'set' : 'MISSING'} ` +
+    `TWILIO_WHATSAPP_FROM=${process.env.TWILIO_WHATSAPP_FROM || 'MISSING'}`
+  )
+  if (!to) {
+    console.warn(`[notifyDoctorOfBooking] SKIP appt=${appointment.id} — CLINIC_WHATSAPP_TO not configured`)
+    return
+  }
 
   const dateStr = new Date(appointment.appointmentDate).toISOString().slice(0, 10)
   const name = appointment.patient?.fullName || 'Unknown'
@@ -25,7 +39,6 @@ async function notifyDoctorOfBooking(appointment) {
     `Date: ${dateStr} at ${appointment.startTime}\n` +
     `Type: ${sessionType}`
 
-  const contentSid = process.env.TWILIO_BOOKING_CONTENT_SID
   const contentVariables = contentSid
     ? {
         1: name,
@@ -37,6 +50,7 @@ async function notifyDoctorOfBooking(appointment) {
       }
     : undefined
 
+  console.log(`[notifyDoctorOfBooking] handing to sendWhatsApp appt=${appointment.id} recipient=${to}`)
   await sendWhatsApp({
     patientId: appointment.patientId,
     mobile: to,
@@ -332,8 +346,9 @@ router.post('/', async (req, res) => {
     res.status(201).json(appointment)
 
     // Fire-and-forget: alert the clinic/doctor. Never blocks or fails the booking.
+    console.log(`[appointments POST] booking ${appointment.id} created — firing notifyDoctorOfBooking`)
     notifyDoctorOfBooking(appointment).catch((err) =>
-      console.error('[appointments] doctor WhatsApp alert failed:', err.message)
+      console.error(`[appointments] doctor WhatsApp alert failed for ${appointment.id}: ${err.stack || err.message}`)
     )
   } catch (err) {
     if (err.message === 'SLOT_FULL') {
